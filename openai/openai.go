@@ -1,18 +1,30 @@
 package openai
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"strings"
 	"syscall"
+	"text/template"
+	"time"
 
 	"github.com/spf13/viper"
 	"golang.org/x/term"
 )
 
 const (
-	model     = "gpt-4o-mini"
-	url       = "https://api.openai.com/v1/chat/completions"
-	maxTokens = 500
+	model = "gpt-4o-mini"
+	//url                = "https://api.openai.com/v1/chat/completions"
+	url                = "http://127.0.0.1:1234/v1/chat/completions"
+	maxTokens          = 4000
+	swaggerDocPath     = "./papiswaggerdoc.json"
+	promptTemplatePath = "./prompt_template.txt"
+	httpCallTimeout    = 360 * time.Second
 )
 
 type Config struct {
@@ -85,4 +97,95 @@ type choice struct {
 
 type message struct {
 	Content string `json:"content"`
+}
+
+func generatePromptFromTemplate(userCommand string) (string, error) {
+	swaggerJSON, err := os.ReadFile(swaggerDocPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read Swagger JSON file: %w", err)
+	}
+
+	templateContent, err := os.ReadFile(promptTemplatePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read template file: %w", err)
+	}
+
+	tmpl, err := template.New("prompt").Parse(string(templateContent))
+	if err != nil {
+		return "", fmt.Errorf("failed to parse template: %w", err)
+	}
+
+	data := struct {
+		SwaggerJSON string
+		UserCommand string
+	}{
+		SwaggerJSON: string(swaggerJSON),
+		UserCommand: userCommand,
+	}
+
+	var result bytes.Buffer
+	if err := tmpl.Execute(&result, data); err != nil {
+		return "", fmt.Errorf("failed to execute template: %w", err)
+	}
+
+	return result.String(), nil
+}
+
+func (p *Provider) GenerateCurlCommand(userCommand string) (string, error) {
+	prompt, err := generatePromptFromTemplate(userCommand)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate prompt: %w", err)
+	}
+	reqPayload := map[string]interface{}{
+		"model": model,
+		"messages": []map[string]string{
+			{"role": "system", "content": "You are an intelligent assistant tasked with generating curl commands and not code for me to run based on both a list of endpoints and user instructions. Only generate the curl command nothing else."},
+			{"role": "user", "content": prompt},
+		},
+		"max_tokens": maxTokens,
+		"n":          1,
+	}
+
+	var body bytes.Buffer
+	err = json.NewEncoder(&body).Encode(reqPayload)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode request payload: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, &body)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	defer req.Body.Close()
+
+	//req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.cfg.APIKey))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := http.Client{
+		Timeout: httpCallTimeout,
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		errorMessage := fmt.Sprintf("api request failed with status code: %d and error %s", resp.StatusCode, string(body))
+		return "", errors.New(errorMessage)
+	}
+
+	var respPayload response
+	err = json.NewDecoder(resp.Body).Decode(&respPayload)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode response payload: %w", err)
+	}
+
+	// Extract the commit message from the response
+	if len(respPayload.Choices) == 0 {
+		return "", fmt.Errorf("no choices in response")
+	}
+
+	return respPayload.Choices[0].Message.Content, nil
 }
