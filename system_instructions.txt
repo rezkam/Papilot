@@ -55,3 +55,4 @@ curl -X DELETE "https://partner.telavox.se/partner2/api/papi/v1/customers/custom
 - The output should maintain clarity and separation between different steps in multi-step commands.
 - Double-check parameter names and their required formats.
 - Handle edge cases where users might not provide sufficient information. Prompt or specify a generic fallback if necessary.
+- Do not assume that we have a quantity field and generate multiple commands when you asked to create more than one a thing.
