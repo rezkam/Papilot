@@ -18,13 +18,13 @@ import (
 )
 
 const (
-	model = "gpt-4o-mini"
-	//url                = "https://api.openai.com/v1/chat/completions"
-	url                = "http://127.0.0.1:1234/v1/chat/completions"
-	maxTokens          = 4000
-	swaggerDocPath     = "./papiswaggerdoc.json"
-	promptTemplatePath = "./prompt_template.txt"
-	httpCallTimeout    = 360 * time.Second
+	model                  = "gpt-4o-mini"
+	url                    = "https://api.openai.com/v1/chat/completions"
+	maxTokens              = 2000
+	apiDocPath             = "./papiapidoc.txt"
+	promptTemplatePath     = "./prompt_template.txt"
+	systemInstructionsPath = "./system_instructions.txt"
+	httpCallTimeout        = 30 * time.Second
 )
 
 type Config struct {
@@ -100,9 +100,9 @@ type message struct {
 }
 
 func generatePromptFromTemplate(userCommand string) (string, error) {
-	swaggerJSON, err := os.ReadFile(swaggerDocPath)
+	apiDoc, err := os.ReadFile(apiDocPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read Swagger JSON file: %w", err)
+		return "", fmt.Errorf("failed to read api doc file: %w", err)
 	}
 
 	templateContent, err := os.ReadFile(promptTemplatePath)
@@ -116,10 +116,10 @@ func generatePromptFromTemplate(userCommand string) (string, error) {
 	}
 
 	data := struct {
-		SwaggerJSON string
+		APIDocText  string
 		UserCommand string
 	}{
-		SwaggerJSON: string(swaggerJSON),
+		APIDocText:  string(apiDoc),
 		UserCommand: userCommand,
 	}
 
@@ -131,16 +131,30 @@ func generatePromptFromTemplate(userCommand string) (string, error) {
 	return result.String(), nil
 }
 
+func generateSystemInstructions() (string, error) {
+	systemInstructions, err := os.ReadFile("./system_instructions.txt")
+	if err != nil {
+		return "", fmt.Errorf("failed to read system instructions file: %w", err)
+	}
+
+	return string(systemInstructions), nil
+}
+
 func (p *Provider) GenerateCurlCommand(userCommand string) (string, error) {
-	prompt, err := generatePromptFromTemplate(userCommand)
+	userPrompt, err := generatePromptFromTemplate(userCommand)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate prompt: %w", err)
+	}
+
+	systemPrompt, err := generateSystemInstructions()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate system instructions: %w", err)
 	}
 	reqPayload := map[string]interface{}{
 		"model": model,
 		"messages": []map[string]string{
-			{"role": "system", "content": "You are an intelligent assistant tasked with generating curl commands and not code for me to run based on both a list of endpoints and user instructions. Only generate the curl command nothing else."},
-			{"role": "user", "content": prompt},
+			{"role": "system", "content": systemPrompt},
+			{"role": "user", "content": userPrompt},
 		},
 		"max_tokens": maxTokens,
 		"n":          1,
@@ -158,7 +172,7 @@ func (p *Provider) GenerateCurlCommand(userCommand string) (string, error) {
 	}
 	defer req.Body.Close()
 
-	//req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.cfg.APIKey))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.cfg.APIKey))
 	req.Header.Set("Content-Type", "application/json")
 
 	client := http.Client{
