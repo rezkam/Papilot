@@ -1,0 +1,56 @@
+Endpoint: /v1/customers/{customer}/assortment/{country}/{currency}
+Method: GET
+Required Parameters: customer, country, currency
+
+---
+Endpoint: /v1/customers/{customer}/api-users/{api-user}/tokens
+Method: POST
+Required Parameters: customer, api-user
+
+---
+Endpoint: /v1/customers/{customer}/api-users/{api-user}/tokens/{capi-token}
+Method: DELETE
+Required Parameters: customer, api-user, capi-token
+
+---
+Endpoint: /v1/customers/{country}/{currency}
+Method: POST
+Required Parameters: country, currency
+
+---
+Endpoint: /v1/customers/{customer}/products/pblicenses/{country}/{currency}/{assortment-item}
+Method: POST
+Required Parameters: customer, country, currency, assortment-item
+Optional Parameters: invoicePlace
+
+---
+Endpoint: /v1/phone-numbers/{country}
+Method: GET
+Required Parameters: country
+
+---
+Endpoint: /v1/phone-numbers
+Method: POST
+Optional Parameters: country
+
+---
+Endpoint: /v1/customers/{customer}/assortment/{country}/{currency}/user-licenses
+Method: GET
+Required Parameters: customer, country, currency
+
+---
+Endpoint: /v1/customers/{customer}/products/user-licenses/{country}/{currency}/unassigned
+Method: GET
+Required Parameters: customer, country, currency
+Optional Parameters: Mobile
+
+---
+Endpoint: /v1/customers/{customer}/products/user-licenses
+Method: GET
+Required Parameters: customer
+
+---
+Endpoint: /v1/customers/{customer}/products/user-licenses/{country}/{currency}/{assortment-item}
+Method: POST
+Required Parameters: customer, country, currency, assortment-item
+Optional Parameters: invoicePlace

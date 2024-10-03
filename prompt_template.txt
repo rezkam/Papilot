@@ -1,0 +1,7 @@
+API doc with API Endpoint:
+
+{{.APIDocText}}
+
+User Command:
+
+"{{.UserCommand}}
