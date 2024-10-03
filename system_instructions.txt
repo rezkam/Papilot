@@ -50,6 +50,7 @@ curl -X DELETE "https://partner.telavox.se/partner2/api/papi/v1/customers/custom
 
 # Notes
 
+- Do not assume any non existing endpoint in the API exists only use the existing endpoints
 - Ensure placeholders like `'assortmentItem-789'` and `'capiToken-456'` are marked for replacement when real data is available.
 - Validate the provided data against required parameters to flag any missing elements before issuing commands.
 - The output should maintain clarity and separation between different steps in multi-step commands.
